@@ -190,12 +190,14 @@
   },
   "VMenu": {
     "props": {
+      "retainFocus": "3.11.0",
       "stickToTarget": "3.10.0",
       "submenu": "3.7.0"
     }
   },
   "VNavigationDrawer": {
     "props": {
+      "retainFocus": "3.11.0",
       "persistent": "3.6.0"
     }
   },
@@ -206,6 +208,7 @@
   },
   "VOverlay": {
     "props": {
+      "retainFocus": "3.11.0",
       "stickToTarget": "3.10.0"
     }
   },
