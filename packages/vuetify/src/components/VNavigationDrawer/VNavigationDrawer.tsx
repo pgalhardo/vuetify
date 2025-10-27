@@ -143,7 +143,7 @@ export const VNavigationDrawer = genericComponent<VNavigationDrawerSlots>()({
       location.value !== 'bottom'
     )
 
-    useFocusTrap(props, { isActive, globalTop: isTemporary, contentEl: rootEl })
+    useFocusTrap(props, { isActive, localTop: isTemporary, contentEl: rootEl })
 
     useToggleScope(() => props.expandOnHover && props.rail != null, () => {
       watch(isHovering, val => emit('update:rail', !val))

@@ -9,14 +9,15 @@ import type { Ref } from 'vue'
 export interface FocusTrapProps {
   retainFocus: boolean
   captureFocus: boolean
-  disableInitialFocus?: boolean // deprecated
+  disableInitialFocus?: boolean
 }
 
 // Composables
 export const makeFocusTrapProps = propsFactory({
   retainFocus: Boolean,
   captureFocus: Boolean,
-  disableInitialFocus: Boolean, // deprecated
+  /** @deprecated */
+  disableInitialFocus: Boolean,
 }, 'focusTrap')
 
 const registry = new Map<symbol, {
@@ -63,9 +64,10 @@ function onKeydown (e: KeyboardEvent) {
 
 export function useFocusTrap (
   props: FocusTrapProps,
-  { isActive, globalTop, contentEl }: {
-    isActive: Readonly<Ref<boolean>>
-    globalTop: Readonly<Ref<boolean>>
+  { isActive, localTop, activatorEl, contentEl }: {
+    isActive: Ref<boolean>
+    localTop: Readonly<Ref<boolean>>
+    activatorEl: Readonly<Ref<HTMLElement | undefined>>
     contentEl: Readonly<Ref<HTMLElement | undefined>>
   }
 ) {
@@ -78,6 +80,16 @@ export function useFocusTrap (
     }
   }, { immediate: true })
 
+  let focusTrapSuppressed = false
+  let focusTrapSuppressionTimeout = -1
+
+  async function onPointerdown () {
+    focusTrapSuppressed = true
+    focusTrapSuppressionTimeout = window.setTimeout(() => {
+      focusTrapSuppressed = false
+    }, 100)
+  }
+
   async function captureFocus (e: FocusEvent) {
     const before = e.relatedTarget as HTMLElement | null
     const after = e.target as HTMLElement | null
@@ -88,15 +100,24 @@ export function useFocusTrap (
       isActive.value &&
       before !== after &&
       contentEl.value &&
-      // We're the topmost menu
-      toValue(globalTop) &&
+      // We're the menu without open submenus or overlays
+      toValue(localTop) &&
       // It isn't the document or the container body
       ![document, contentEl.value].includes(after!) &&
       // It isn't inside the container body
       !contentEl.value.contains(after)
     ) {
-      const focusable = focusableChildren(contentEl.value)
-      focusable[0]?.focus()
+      if (focusTrapSuppressed) {
+        if (!activatorEl.value?.contains(after)) {
+          // TODO: callback for VMenu and VTooltip, or skip for VDialog... suppressOnClickOutside?
+          // if (!props.openOnHover) isActive.value = false
+        }
+      } else {
+        const focusable = focusableChildren(contentEl.value)
+        focusable[0]?.focus()
+
+        document.removeEventListener('pointerdown', onPointerdown)
+      }
     }
   }
 
@@ -104,13 +125,17 @@ export function useFocusTrap (
 
   IN_BROWSER && watch(shouldCapture, val => {
     if (val) {
+      document.addEventListener('pointerdown', onPointerdown)
       document.addEventListener('focusin', captureFocus, { once: true })
     } else {
+      document.removeEventListener('pointerdown', onPointerdown)
       document.removeEventListener('focusin', captureFocus)
     }
   }, { immediate: true })
 
   onBeforeUnmount(() => {
+    clearTimeout(focusTrapSuppressionTimeout)
+    document.removeEventListener('pointerdown', onPointerdown)
     document.removeEventListener('focusin', captureFocus)
   })
 
